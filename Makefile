@@ -949,9 +949,9 @@ clean:: mapistore_clean
 # mapistore test tools
 #######################
 
-mapistore_check: bin/mapistore_check
+mapistore_tool: bin/mapistore_tool
 
-bin/mapistore_check: 	testprogs/mapistore_check.o		\
+bin/mapistore_tool: 	testprogs/mapistore_tool.o		\
 			mapiproxy/libmapistore.$(SHLIBEXT).$(PACKAGE_VERSION)	\
 			mapiproxy/libmapiproxy.$(SHLIBEXT).$(PACKAGE_VERSION)
 	@echo "Linking $@"
