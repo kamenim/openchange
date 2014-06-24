@@ -52,12 +52,10 @@ int main(int argc, const char *argv[])
 {
 	TALLOC_CTX			*mem_ctx;
 	struct loadparm_context		*lp_ctx;
-	struct openchangedb_context 	*oc_ctx = NULL;
 	struct mapistore_context	*mstore_ctx = NULL;
 	struct mapistore_contexts_list  *context;
 	struct mapistore_contexts_list  *contexts_list = NULL;
 	enum mapistore_error		ret;
-	enum MAPISTATUS			retval;
 	poptContext			pc;
 	int				opt;
 	const char			*opt_debug = NULL;
@@ -107,8 +105,6 @@ int main(int argc, const char *argv[])
 	}
 	lpcfg_load_default(lp_ctx);
 
-	retval = openchangedb_initialize(mem_ctx, lp_ctx, &oc_ctx);
-
 	/* Initialize mapistore */
 	mstore_ctx = mapistore_init(mem_ctx, lp_ctx, NULL);
 	if (mstore_ctx == NULL) {
@@ -117,12 +113,11 @@ int main(int argc, const char *argv[])
 		return 1;
 	}
 
-//	mapistore_set_connection_info(mstore_ctx, NULL, oc_ctx, opt_username);
-	mstore_ctx->conn_info = talloc_zero(mstore_ctx, struct mapistore_connection_info);
-	mstore_ctx->conn_info->oc_ctx = talloc_reference(mstore_ctx->conn_info, oc_ctx);
-	mstore_ctx->conn_info->username = talloc_strdup(mem_ctx, opt_username);
-
 	ret = mapistore_list_contexts_for_user(mstore_ctx, opt_username, mem_ctx, &contexts_list);
+	if (MAPISTORE_SUCCESS != ret) {
+		fprintf(stderr, "Failed to list mapistore contexts: %s\n", mapistore_errstr(ret));
+		return 1;
+	}
 	context = contexts_list;
 	while (context) {
 		printf("{\n");
