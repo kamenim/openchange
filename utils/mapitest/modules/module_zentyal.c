@@ -22,6 +22,7 @@
 
 #include "utils/mapitest/mapitest.h"
 #include "utils/mapitest/proto.h"
+#include "libmapi/libmapi_private.h"
 
 /**
    \file module_zentyal.c
@@ -330,4 +331,206 @@ _PUBLIC_ bool mapitest_zentyal_1804(struct mapitest *mt)
 	mapi_object_release(&obj_store);
 
 	return true;
+}
+
+/**
+    \details Test FreeBusy
+
+    \param mt pointer to the top level mapitest structure
+
+    \return true on success, otherwise false
+*/
+_PUBLIC_ bool mapitest_zentyal_public_freebusy(struct mapitest *mt)
+{
+	enum MAPISTATUS			retval;
+	TALLOC_CTX			*mem_ctx;
+	mapi_id_t			id_freebusy;
+	mapi_object_t			obj_store;
+	mapi_object_t			obj_freebusy;
+	mapi_object_t			obj_exfreebusy;
+	mapi_object_t			obj_message;
+	mapi_object_t			obj_htable;
+	mapi_object_t			obj_ctable;
+	struct PropertyRowSet_r		*pRowSet;
+	struct SRow			SRow;
+	struct SRowSet			SRowSet;
+	struct SPropValue		*lpProps;
+	struct mapi_SRestriction	res;
+	struct SSortOrderSet		criteria;
+	struct SPropTagArray		*SPropTagArray = NULL;
+	char				*message_name;
+	char				*folder_name;
+	const char			*email = NULL;
+	const char			*recipient = NULL;
+	char				*o = NULL;
+	char				*ou = NULL;
+	char				*username;
+	const uint64_t			*fid;
+	const uint64_t			*mid;
+	uint32_t			count;
+
+	/* Step 0. Pre-init all handles, so we coudl free them blindly */
+	mapi_object_init(&obj_store);
+	mapi_object_init(&obj_freebusy);
+	mapi_object_init(&obj_exfreebusy);
+	mapi_object_init(&obj_message);
+	mapi_object_init(&obj_htable);
+	mapi_object_init(&obj_ctable);
+
+	/* Step 1. Logon */
+	retval = OpenPublicFolder(mt->session, &obj_store);
+	mapitest_print_retval(mt, "OpenPublicFolder");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	mem_ctx = talloc_named(mt->mem_ctx, 0, __FUNCTION__);
+
+	/* Step 2. Retrieve the user Email Address and build FreeBusy strings */
+	/* TODO: Allow different username from environment */
+	recipient = mt->profile->username;
+	pRowSet = talloc_zero(mem_ctx, struct PropertyRowSet_r);
+	retval = GetABRecipientInfo(mt->session, recipient, NULL, &pRowSet);
+	mapitest_print_retval(mt, "GetABRecipientInfo");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	email = (const char *) get_PropertyValue_PropertyRowSet_data(pRowSet, PR_EMAIL_ADDRESS_UNICODE);
+	o = x500_get_dn_element(mem_ctx, email, ORG);
+	ou = x500_get_dn_element(mem_ctx, email, ORG_UNIT);
+	username = x500_get_dn_element(mem_ctx, email, "/cn=Recipients/cn=");
+
+	if (!username) {
+		mapitest_print(mt, "Failed to find username for email %s\n", email);
+		set_errno(MAPI_E_NOT_ENOUGH_MEMORY);
+		goto end;
+	}
+
+	/* toupper username */
+	username = strupper_talloc(mem_ctx, username);
+
+	message_name = talloc_asprintf(mem_ctx, FREEBUSY_USER, username);
+	folder_name = talloc_asprintf(mem_ctx, FREEBUSY_FOLDER, o, ou);
+
+	/* Step 3. Open the FreeBusy root folder */
+	retval = GetDefaultPublicFolder(&obj_store, &id_freebusy, olFolderPublicFreeBusyRoot);
+	mapitest_print_retval(mt, "GetDefaultPublicFolder");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	retval = OpenFolder(&obj_store, id_freebusy, &obj_freebusy);
+	mapitest_print_retval(mt, "OpenFolder");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 4. Open the hierarchy table */
+	retval = GetHierarchyTable(&obj_freebusy, &obj_htable, 0, NULL);
+	mapitest_print_retval(mt, "GetHierarchyTable");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 5. Customize Hierarchy Table view */
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0x2,
+					  PR_FID,
+					  PR_DISPLAY_NAME);
+	retval = SetColumns(&obj_htable, SPropTagArray);
+	mapitest_print_retval(mt, "SetColumns");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 6. Find FreeBusy folder row */
+	res.rt = RES_PROPERTY;
+	res.res.resProperty.relop = RELOP_EQ;
+	res.res.resProperty.ulPropTag = PR_DISPLAY_NAME;
+	res.res.resProperty.lpProp.ulPropTag = PR_DISPLAY_NAME;
+	res.res.resProperty.lpProp.value.lpszA = folder_name;
+	retval = FindRow(&obj_htable, &res, BOOKMARK_BEGINNING, DIR_FORWARD, &SRowSet);
+	mapitest_print_retval_fmt(mt, "GetHierarchyTable", ": folder_name = (%s)", folder_name);
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 7. Open the folder */
+	fid = (const uint64_t *) get_SPropValue_SRowSet_data(&SRowSet, PR_FID);
+	if (!fid || *fid == MAPI_E_NOT_FOUND) {
+		set_errno(MAPI_E_NOT_FOUND);
+		mapitest_print(mt, "Failed for find folder with name %s\n", folder_name);
+		goto end;
+	}
+
+	retval = OpenFolder(&obj_freebusy, *fid, &obj_exfreebusy);
+	mapitest_print_retval(mt, "OpenFolder");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 8. Open the contents table */
+	retval = GetContentsTable(&obj_exfreebusy, &obj_ctable, 0, NULL);
+	mapitest_print_retval(mt, "GetContentsTable");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 9. Customize Contents Table view */
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0x5,
+					  PR_FID,
+					  PR_MID,
+					  PR_ADDRBOOK_MID,
+					  PR_INSTANCE_NUM,
+					  PR_NORMALIZED_SUBJECT);
+	retval = SetColumns(&obj_ctable, SPropTagArray);
+	mapitest_print_retval(mt, "SetColumns");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 10. Sort the table */
+	ZERO_STRUCT(criteria);
+	criteria.cSorts = 1;
+	criteria.aSort = talloc_array(mem_ctx, struct SSortOrder, criteria.cSorts);
+	criteria.aSort[0].ulPropTag = PR_NORMALIZED_SUBJECT;
+	criteria.aSort[0].ulOrder = TABLE_SORT_ASCEND;
+	retval = SortTable(&obj_ctable, &criteria);
+	mapitest_print_retval(mt, "SortTable");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 11. Find the user FreeBusy message row */
+	res.rt = RES_PROPERTY;
+	res.res.resProperty.relop = RELOP_EQ;
+	res.res.resProperty.ulPropTag = PR_NORMALIZED_SUBJECT;
+	res.res.resProperty.lpProp.ulPropTag = PR_NORMALIZED_SUBJECT;
+	res.res.resProperty.lpProp.value.lpszA = message_name;
+	retval = FindRow(&obj_ctable, &res, BOOKMARK_BEGINNING, DIR_FORWARD, &SRowSet);
+	mapitest_print_retval(mt, "FindRow");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 12. Open the message */
+	fid = (const uint64_t *)get_SPropValue_SRowSet_data(&SRowSet, PR_FID);
+	mid = (const uint64_t *)get_SPropValue_SRowSet_data(&SRowSet, PR_MID);
+	OPENCHANGE_RETVAL_IF(!fid || *fid == MAPI_E_NOT_FOUND, MAPI_E_NOT_FOUND, NULL);
+	OPENCHANGE_RETVAL_IF(!mid || *mid == MAPI_E_NOT_FOUND, MAPI_E_NOT_FOUND, NULL);
+
+	retval = OpenMessage(&obj_exfreebusy, *fid, *mid, &obj_message, ReadWrite);
+	mapitest_print_retval(mt, "OpenMessage");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	/* Step 13. Get FreeBusy properties */
+	SPropTagArray = set_SPropTagArray(mem_ctx, 0xc,
+					  PR_NORMALIZED_SUBJECT,
+					  PR_FREEBUSY_RANGE_TIMESTAMP,
+					  PR_FREEBUSY_PUBLISH_START,
+					  PR_FREEBUSY_PUBLISH_END,
+					  PR_SCHDINFO_MONTHS_MERGED,
+					  PR_SCHDINFO_FREEBUSY_MERGED,
+					  PR_SCHDINFO_MONTHS_TENTATIVE,
+					  PR_SCHDINFO_FREEBUSY_TENTATIVE,
+					  PR_SCHDINFO_MONTHS_BUSY,
+					  PR_SCHDINFO_FREEBUSY_BUSY,
+					  PR_SCHDINFO_MONTHS_OOF,
+					  PR_SCHDINFO_FREEBUSY_OOF);
+	retval = GetProps(&obj_message, 0, SPropTagArray, &lpProps, &count);
+	mapitest_print_retval(mt, "GetProps");
+	if (MAPI_STATUS_IS_ERR(retval)) goto end;
+
+	SRow.cValues = count;
+	SRow.lpProps = lpProps;
+	mapidump_SRow(&SRow, "[sep]");
+
+
+end:
+	TALLOC_FREE(pRowSet);
+	TALLOC_FREE(mem_ctx);
+	mapi_object_release(&obj_message);
+	mapi_object_release(&obj_ctable);
+	mapi_object_release(&obj_exfreebusy);
+	mapi_object_release(&obj_htable);
+	mapi_object_release(&obj_freebusy);
+	mapi_object_release(&obj_store);
+
+	return MAPI_STATUS_IS_OK(GetLastError());
 }
