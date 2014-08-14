@@ -570,7 +570,7 @@ _PUBLIC_ bool mapitest_zentyal_public_freebusy(struct mapitest *mt)
 	/* Step 5. Customize Hierarchy Table view */
 	SPropTagArray = set_SPropTagArray(mem_ctx, 0x2,
 					  PR_FID,
-					  PR_DISPLAY_NAME);
+					  PR_DISPLAY_NAME_UNICODE);
 	retval = SetColumns(&obj_htable, SPropTagArray);
 	mapitest_print_retval(mt, "SetColumns");
 	if (MAPI_STATUS_IS_ERR(retval)) goto end;
@@ -578,11 +578,15 @@ _PUBLIC_ bool mapitest_zentyal_public_freebusy(struct mapitest *mt)
 	/* Step 6. Find FreeBusy folder row */
 	res.rt = RES_PROPERTY;
 	res.res.resProperty.relop = RELOP_EQ;
-	res.res.resProperty.ulPropTag = PR_DISPLAY_NAME;
-	res.res.resProperty.lpProp.ulPropTag = PR_DISPLAY_NAME;
+	res.res.resProperty.ulPropTag = PR_DISPLAY_NAME_UNICODE;
+	res.res.resProperty.lpProp.ulPropTag = PR_DISPLAY_NAME_UNICODE;
 	res.res.resProperty.lpProp.value.lpszA = folder_name;
 	retval = FindRow(&obj_htable, &res, BOOKMARK_BEGINNING, DIR_FORWARD, &SRowSet);
 	mapitest_print_retval_fmt(mt, "GetHierarchyTable", ": folder_name = (%s)", folder_name);
+	if (MAPI_STATUS_IS_ERR(retval)) {
+		DEBUG(0, ("Folder [%s] not found for some reason - list all subfolders\n", folder_name));
+		mapitest_common_find_folder(mt, &obj_freebusy, &obj_exfreebusy, folder_name);
+	}
 	if (MAPI_STATUS_IS_ERR(retval)) goto end;
 
 	/* Step 7. Open the folder */
