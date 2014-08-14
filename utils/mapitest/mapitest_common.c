@@ -168,7 +168,7 @@ _PUBLIC_ bool mapitest_common_find_folder(struct mapitest *mt,
 	}
 
 	SPropTagArray = set_SPropTagArray(mt->mem_ctx, 0x2,
-					  PR_DISPLAY_NAME,
+					  PR_DISPLAY_NAME_UNICODE,
 					  PR_FID);
 	retval = SetColumns(&obj_htable, SPropTagArray);
 	MAPIFreeBuffer(SPropTagArray);
@@ -180,7 +180,7 @@ _PUBLIC_ bool mapitest_common_find_folder(struct mapitest *mt,
 	while (((retval = QueryRows(&obj_htable, count, TBL_ADVANCE, &rowset)) != MAPI_E_NOT_FOUND) && rowset.cRows) {
 		for (index = 0; index < rowset.cRows; index++) {
 			fid = (const uint64_t *)find_SPropValue_data(&rowset.aRow[index], PR_FID);
-			newname = (const char *)find_SPropValue_data(&rowset.aRow[index], PR_DISPLAY_NAME);
+			newname = (const char *)find_SPropValue_data(&rowset.aRow[index], PR_DISPLAY_NAME_UNICODE);
 
 			if (newname && fid && !strcmp(newname, name)) {
 				retval = OpenFolder(obj_parent, *fid, obj_child);
