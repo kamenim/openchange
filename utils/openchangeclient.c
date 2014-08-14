@@ -2840,6 +2840,7 @@ int main(int argc, const char *argv[])
 	bool			opt_notifications = false;
 	bool			opt_mkdir = false;
 	bool			opt_rmdir = false;
+	bool			opt_list_dir = false;
 	bool			opt_userlist = false;
 	bool			opt_ocpf_syntax = false;
 	bool			opt_ocpf_sender = false;
@@ -2863,7 +2864,7 @@ int main(int argc, const char *argv[])
 	      OPT_MAPI_BUSYSTATUS, OPT_NOTIFICATIONS, OPT_DEBUG, OPT_DUMPDATA, 
 	      OPT_MAPI_EMAIL, OPT_MAPI_FULLNAME, OPT_MAPI_CARDNAME,
 	      OPT_MAPI_TASKSTATUS, OPT_MAPI_IMPORTANCE, OPT_MAPI_LABEL, OPT_PF, 
-	      OPT_FOLDER, OPT_MAPI_COLOR, OPT_SENDNOTE, OPT_MKDIR, OPT_RMDIR,
+	      OPT_FOLDER, OPT_MAPI_COLOR, OPT_SENDNOTE, OPT_MKDIR, OPT_RMDIR, OPT_LIST_DIR,
 	      OPT_FOLDER_NAME, OPT_FOLDER_COMMENT, OPT_USERLIST, OPT_MAPI_PRIVATE,
 	      OPT_UPDATE, OPT_DELETEITEMS, OPT_OCPF_FILE, OPT_OCPF_SYNTAX,
 	      OPT_OCPF_SENDER, OPT_OCPF_DUMP, OPT_FREEBUSY, OPT_FORCE, OPT_FETCHSUMMARY,
@@ -2914,6 +2915,7 @@ int main(int argc, const char *argv[])
 		{"folder", 0, POPT_ARG_STRING, NULL, OPT_FOLDER, "set the folder to use instead of inbox", NULL },
 		{"mkdir", 0, POPT_ARG_NONE, NULL, OPT_MKDIR, "create a folder", NULL },
 		{"rmdir", 0, POPT_ARG_NONE, NULL, OPT_RMDIR, "delete a folder", NULL },
+		{"list-dir", 0, POPT_ARG_NONE, NULL, OPT_LIST_DIR, "List sub folders. Pass folder ID as hex in --folder option", NULL},
 		{"userlist", 0, POPT_ARG_NONE, NULL, OPT_USERLIST, "list Address Book entries", NULL },
 		{"folder-name", 0, POPT_ARG_STRING, NULL, OPT_FOLDER_NAME, "set the folder name", NULL },
 		{"folder-comment", 0, POPT_ARG_STRING, NULL, OPT_FOLDER_COMMENT, "set the folder comment", NULL },
@@ -2956,6 +2958,9 @@ int main(int argc, const char *argv[])
 			break;
 		case OPT_RMDIR:
 			opt_rmdir = true;
+			break;
+		case OPT_LIST_DIR:
+			opt_list_dir = true;
 			break;
 		case OPT_FOLDER_NAME:
 			oclient.folder_name = poptGetOptArg(pc);
@@ -3449,6 +3454,23 @@ int main(int argc, const char *argv[])
 		if (retval != true) {
 			goto end;
 		}
+	}
+
+	if (opt_list_dir) {
+		mapi_id_t folder_id = 0;
+		if (oclient.folder) {
+			folder_id = strtoull(oclient.folder, NULL, 16);
+		}
+		if (folder_id == 0) {
+			printf("[ERROR] You must pass folder ID as hex number in --folder option.\n");
+			goto end;
+		}
+		if (oclient.pf) {
+			get_child_folders_pf(mem_ctx, &obj_store, folder_id, 0);
+		} else {
+			get_child_folders(mem_ctx, &obj_store, folder_id, 0);
+		}
+		mapi_errstr("list-dir", GetLastError());
 	}
 
 	/* Uninitialize MAPI subsystem */
