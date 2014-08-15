@@ -713,9 +713,11 @@ dnl Notifications service
 dnl ##########################################################################
 PKG_CHECK_MODULES(SSL, libssl)
 PKG_CHECK_MODULES(BSD, libbsd)
-PKG_CHECK_MODULES(RABBITMQ, librabbitmq >= 0.4.1)
-PKG_CHECK_MODULES(JSONC, json-c >= 0.11)
-PKG_CHECK_MODULES(CONFIG, libconfig >= 1.4.8)
+# PKG_CHECK_MODULES(RABBITMQ, librabbitmq)
+#PKG_CHECK_MODULES(JSONC, json-c)
+PKG_CHECK_MODULES(CONFIG, libconfig)
+AC_CHECK_HEADER([amqp.h],,AC_MSG_FAILURE([Please install librabbitmq-dev]))
+AC_CHECK_HEADER([json/json.h],,AC_MSG_FAILURE([Please install libjson0-dev or libjson-c-dev]))
 
 OC_NOTIF=ocnotification
 OC_NOTIF_CLEAN=ocnotification-clean
