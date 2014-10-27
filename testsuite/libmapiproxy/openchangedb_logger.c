@@ -46,6 +46,8 @@ static struct openchangedb_context *functions_called_p;
 START_TEST (test_call_get_SpecialFolderID) {
 	uint64_t folder_id;
 
+	ZERO_STRUCT(functions_called);
+
 	CHECK_SUCCESS(openchangedb_get_SpecialFolderID(oc_ctx, "recipient", 1234, &folder_id));
 
 	ck_assert_int_eq(folder_id, FOLDER_ID_EXPECTED);
@@ -54,6 +56,8 @@ START_TEST (test_call_get_SpecialFolderID) {
 
 START_TEST (test_call_get_SystemFolderID) {
 	uint64_t folder_id;
+
+	ZERO_STRUCT(functions_called);
 
 	CHECK_SUCCESS(openchangedb_get_SystemFolderID(oc_ctx, "recipient", 1234, &folder_id));
 
@@ -65,6 +69,8 @@ START_TEST (test_call_get_SystemFolderID) {
 START_TEST (test_call_get_PublicFolderID) {
 	uint64_t folder_id;
 
+	ZERO_STRUCT(functions_called);
+
 	CHECK_SUCCESS(openchangedb_get_PublicFolderID(oc_ctx, "usera", 1234, &folder_id));
 
 	ck_assert_int_eq(folder_id, FOLDER_ID_EXPECTED);
@@ -74,6 +80,8 @@ START_TEST (test_call_get_PublicFolderID) {
 START_TEST (test_call_get_distinguishedName) {
 	char *dn;
 
+	ZERO_STRUCT(functions_called);
+
 	CHECK_SUCCESS(openchangedb_get_distinguishedName(mem_ctx, oc_ctx, 1234, &dn));
 
 	ck_assert_int_eq(functions_called.get_distinguishedName, 1);
@@ -81,6 +89,8 @@ START_TEST (test_call_get_distinguishedName) {
 
 START_TEST(test_call_get_MailboxGuid) {
 	struct GUID MailboxGUID;
+
+	ZERO_STRUCT(functions_called);
 
 	CHECK_SUCCESS(openchangedb_get_MailboxGuid(oc_ctx, "recipient", &MailboxGUID));
 
@@ -91,6 +101,8 @@ START_TEST(test_call_get_MailboxReplica) {
 	uint16_t ReplID;
 	struct GUID ReplGUID;
 
+	ZERO_STRUCT(functions_called);
+
 	CHECK_SUCCESS(openchangedb_get_MailboxReplica(oc_ctx, "recipient", &ReplID, &ReplGUID));
 
 	ck_assert_int_eq(functions_called.get_MailboxReplica, 1);
@@ -99,6 +111,8 @@ START_TEST(test_call_get_MailboxReplica) {
 START_TEST(test_call_get_PublicFolderReplica) {
 	uint16_t ReplID;
 	struct GUID ReplGUID;
+
+	ZERO_STRUCT(functions_called);
 
 	CHECK_SUCCESS(openchangedb_get_PublicFolderReplica(oc_ctx, "usera", &ReplID, &ReplGUID));
 
