@@ -628,7 +628,7 @@ static void ocdb_logger_setup(void)
 	enum MAPISTATUS mapi_status;
 	struct openchangedb_context *backend_ctx;
 
-	ZERO_STRUCT(functions_called);
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 
 	mem_ctx = talloc_new(NULL);
 
@@ -642,11 +642,14 @@ static void ocdb_logger_setup(void)
 		fprintf(stderr, "Failed to initialize Logger backend %d\n", mapi_status);
 		ck_abort();
 	}
+
+	ZERO_STRUCT(functions_called);
 }
 
 static void ocdb_logger_teardown(void)
 {
 	talloc_free(mem_ctx);
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 }
 
 
