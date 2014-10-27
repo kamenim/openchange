@@ -38,7 +38,8 @@
 static TALLOC_CTX *mem_ctx;
 static struct openchangedb_context *oc_ctx;
 
-static struct openchangedb_context functions_called;
+static struct openchangedb_context *functions_called_p;
+#define functions_called	(*functions_called_p)
 
 // v Unit test ----------------------------------------------------------------
 
@@ -554,7 +555,7 @@ static enum MAPISTATUS mock_backend_init(TALLOC_CTX *mem_ctx,
 
 	OPENCHANGE_RETVAL_IF(oc_ctx == NULL, MAPI_E_NOT_ENOUGH_RESOURCES, NULL);
 
-	ZERO_STRUCT(functions_called);
+//	ZERO_STRUCT(functions_called);
 //	oc_ctx->data = data;
 
 	// Initialize struct with function pointers
@@ -643,7 +644,7 @@ static void ocdb_logger_setup(void)
 		ck_abort();
 	}
 
-	ZERO_STRUCT(functions_called);
+	functions_called_p = talloc_zero(mem_ctx, struct openchangedb_context);
 }
 
 static void ocdb_logger_teardown(void)
