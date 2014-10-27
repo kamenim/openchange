@@ -175,6 +175,7 @@ static enum MAPISTATUS get_SpecialFolderID(struct openchangedb_context *self,
 					  const char *recipient, uint32_t system_idx,
 					  uint64_t *folder_id)
 {
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 	*folder_id = FOLDER_ID_EXPECTED;
 	functions_called.get_SpecialFolderID++;
 
@@ -196,6 +197,7 @@ static enum MAPISTATUS get_PublicFolderID(struct openchangedb_context *self,
 					  uint32_t SystemIdx,
 					  uint64_t *FolderId)
 {
+	fprintf(stderr, "%s\n", __PRETTY_FUNCTION__);
 	*FolderId = FOLDER_ID_EXPECTED;
 	functions_called.get_PublicFolderID++;
 
